@@ -6,7 +6,7 @@
 	"login": {
 		"email": "user@domain.com",
 		"password": "pa$$w0rd",
-		"token": "your token here"
+		"token": "YOUR-TOKEN-HERE"
 	},
 	"channels": {
 		"whitelist": [],
