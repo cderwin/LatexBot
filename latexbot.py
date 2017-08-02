@@ -34,131 +34,131 @@ Using the `\begin` or `\end` in the *LaTeX* will probably result in something fa
 
 
 class LatexBot(discord.Client):
-	#TODO: Check for bad token or login credentials using try catch
-	def __init__(self):
-		super().__init__()
+    #TODO: Check for bad token or login credentials using try catch
+    def __init__(self):
+        super().__init__()
 
-		self.check_for_config()
-		self.settings = json.loads(open('settings.json').read())
+        self.check_for_config()
+        self.settings = json.loads(open('settings.json').read())
 
-		# Quick and dirty defaults of colour settings, if not already present in the settings
-		if 'latex' not in self.settings:
-			self.settings['latex'] = {
-							'background-colour': '36393E',
-							'text-colour': 'DBDBDB',
-							'dpi': '200'
-			}
+        # Quick and dirty defaults of colour settings, if not already present in the settings
+        if 'latex' not in self.settings:
+            self.settings['latex'] = {
+                            'background-colour': '36393E',
+                            'text-colour': 'DBDBDB',
+                            'dpi': '200'
+            }
 
-		chanrestrict.setup(self.settings['channels']['whitelist'],
-							self.settings['channels']['blacklist'])
+        chanrestrict.setup(self.settings['channels']['whitelist'],
+                            self.settings['channels']['blacklist'])
 
-		# Check if user is using a token or login
-		if self.settings['login_method'] == 'token':
-			self.run(self.settings['login']['token'])
-		elif self.settings['login_method'] == 'account':
-			self.login(self.settings['login']['email'], self.settings['login']['password'])
-			self.run()
-		else:
-			raise Exception('Bad config: "login_method" should set to "login" or "token"')
+        # Check if user is using a token or login
+        if self.settings['login_method'] == 'token':
+            self.run(self.settings['login']['token'])
+        elif self.settings['login_method'] == 'account':
+            self.login(self.settings['login']['email'], self.settings['login']['password'])
+            self.run()
+        else:
+            raise Exception('Bad config: "login_method" should set to "login" or "token"')
 
-	# Check that config exists
-	def check_for_config(self):
-		if not os.path.isfile('settings.json'):
-			shutil.copyfile('settings_default.json', 'settings.json')
-			print('Now you can go and edit `settings.json`.')
-			print('See README.md for more information on these settings.')
+    # Check that config exists
+    def check_for_config(self):
+        if not os.path.isfile('settings.json'):
+            shutil.copyfile('settings_default.json', 'settings.json')
+            print('Now you can go and edit `settings.json`.')
+            print('See README.md for more information on these settings.')
 
-	def vprint(self, *args, **kwargs):
-		if self.settings.get('verbose', False):
-			print(*args, **kwargs)
+    def vprint(self, *args, **kwargs):
+        if self.settings.get('verbose', False):
+            print(*args, **kwargs)
 
-	# Outputs bot info to user
-	@asyncio.coroutine
-	def on_ready(self):
-		print('------')
-		print('Logged in as')
-		print(self.user.name)
-		print(self.user.id)
-		print('------')
+    # Outputs bot info to user
+    async def on_ready(self):
+        print('------')
+        print('Logged in as')
+        print(self.user.name)
+        print(self.user.id)
+        print('------')
 
-	async def on_message(self, message):
-		if chanrestrict.check(message):
+    async def on_message(self, message):
+        if chanrestrict.check(message):
 
-			msg = message.content
+            msg = message.content
+            print(f'Received: {msg}')
 
-			for c in self.settings['commands']['render']:
-				if msg.startswith(c):
-					latex = msg[len(c):].strip()
-					self.vprint('Latex:', latex)
+            for c in self.settings['commands']['render']:
+                if msg.startswith(c):
+                    latex = msg[len(c):].strip(' \n`')
+                    self.vprint('Latex:', latex)
 
-					num = str(random.randint(0, 2 ** 31))
-					if self.settings['renderer'] == 'external':
-						fn = self.generate_image_online(latex)
-					if self.settings['renderer'] == 'local':
-						fn = self.generate_image(latex, num)
-						# raise Exception('TODO: Renable local generation')
+                    num = str(random.randint(0, 2 ** 31))
+                    if self.settings['renderer'] == 'external':
+                        fn = self.generate_image_online(latex)
+                    if self.settings['renderer'] == 'local':
+                        fn = self.generate_image(latex, num)
+                        # raise Exception('TODO: Renable local generation')
 
-					if fn and os.path.getsize(fn) > 0:
-						await self.send_file(message.channel, fn)
-						self.cleanup_output_files(num)
-						self.vprint('Success!')
-					else:
-						await self.send_message(message.channel, 'Something broke. Check the syntax of your message. :frowning:')
-						self.cleanup_output_files(num)
-						self.vprint('Failure.')
+                    if fn and os.path.getsize(fn) > 0:
+                        await self.send_file(message.channel, fn)
+                        self.cleanup_output_files(num)
+                        self.vprint('Success!')
+                    else:
+                        await self.send_message(message.channel, 'Something broke. Check the syntax of your message. :frowning:')
+                        self.cleanup_output_files(num)
+                        self.vprint('Failure.')
 
-					break
+                    break
 
-			if msg in self.settings['commands']['help']:
-				self.vprint('Showing help')
-				await self.send_message(message.author, HELP_MESSAGE)
+            if msg in self.settings['commands']['help']:
+                self.vprint('Showing help')
+                await self.send_message(message.author, HELP_MESSAGE)
 
-	# Generate LaTeX locally. Is there such things as rogue LaTeX code?
-	def generate_image(self, latex, name):
+    # Generate LaTeX locally. Is there such things as rogue LaTeX code?
+    def generate_image(self, latex, name):
 
-		latex_file = name + '.tex'
-		dvi_file = name + '.dvi'
-		png_file = name + '1.png'
+        latex_file = f'{name}.tex'
+        pdf_file = f'{name}.pdf'
+        png_file = f'{name}.png'
 
-		with open(LATEX_TEMPLATE, 'r') as textemplatefile:
-			textemplate = textemplatefile.read()
+        with open(LATEX_TEMPLATE, 'r') as textemplatefile:
+            textemplate = textemplatefile.read()
 
-			with open(latex_file, 'w') as tex:
-				backgroundcolour = self.settings['latex']['background-colour']
-				textcolour = self.settings['latex']['text-colour']
-				latex = textemplate.replace('__DATA__', latex).replace('__BGCOLOUR__', backgroundcolour).replace('__TEXTCOLOUR__', textcolour)
+            with open(latex_file, 'w') as tex:
+                backgroundcolour = self.settings['latex']['background-colour']
+                textcolour = self.settings['latex']['text-colour']
+                latex = textemplate.replace('__DATA__', latex).replace('__BGCOLOUR__', backgroundcolour).replace('__TEXTCOLOUR__', textcolour)
 
-				tex.write(latex)
-				tex.flush()
-				tex.close()
+                tex.write(latex)
+                tex.flush()
+                tex.close()
 
-		imagedpi = self.settings['latex']['dpi']
-		latexsuccess = os.system('latex -quiet -interaction=nonstopmode ' + latex_file)
-		if latexsuccess == 0:
-			os.system('dvipng -q* -D {0} -T tight '.format(imagedpi) + dvi_file)
-			return png_file
-		else:
-			return ''
+        imagedpi = self.settings['latex']['dpi']
+        latexsuccess = os.system('pdflatex -quiet -interaction=nonstopmode ' + latex_file)
+        if latexsuccess == 0:
+            os.system(f'convert {pdf_file} {png_file}')
+            return png_file
+        else:
+            return ''
 
-	# More unpredictable, but probably safer for my computer.
-	def generate_image_online(self, latex):
-		url = 'http://frog.isima.fr/cgi-bin/bruno/tex2png--10.cgi?'
-		url += urllib.parse.quote(latex, safe='')
-		fn = str(random.randint(0, 2 ** 31)) + '.png'
-		urllib.request.urlretrieve(url, fn)
-		return fn
+    # More unpredictable, but probably safer for my computer.
+    def generate_image_online(self, latex):
+        url = 'http://frog.isima.fr/cgi-bin/bruno/tex2png--10.cgi?'
+        url += urllib.parse.quote(latex, safe='')
+        fn = str(random.randint(0, 2 ** 31)) + '.png'
+        urllib.request.urlretrieve(url, fn)
+        return fn
 
-	# Removes the generated output files for a given name
-	def cleanup_output_files(self, outputnum):
-		try:
-			os.remove(outputnum + '.tex')
-			os.remove(outputnum + '.dvi')
-			os.remove(outputnum + '.aux')
-			os.remove(outputnum + '.log')
-			os.remove(outputnum + '1.png')
-		except OSError:
-			pass
+    # Removes the generated output files for a given name
+    def cleanup_output_files(self, outputnum):
+        try:
+            os.remove(outputnum + '.tex')
+            os.remove(outputnum + '.dvi')
+            os.remove(outputnum + '.aux')
+            os.remove(outputnum + '.log')
+            os.remove(outputnum + '1.png')
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":
-	LatexBot()
+    LatexBot()

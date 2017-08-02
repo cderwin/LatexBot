@@ -1,0 +1,7 @@
+version: '2'
+services:
+    bot:
+        build: .
+        command: python3 /code/latexbot.py
+        volumes:
+            - .:/code
